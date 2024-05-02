@@ -9,10 +9,6 @@ pub fn run() {
     {
         pollster::block_on(run_async())
     }
-    #[cfg(target_arch = "wasm32")]
-    {
-        wasm_bindgen_futures::spawn_local(run_async());
-    }
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]

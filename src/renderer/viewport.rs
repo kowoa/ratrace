@@ -49,6 +49,10 @@ impl<'window> Viewport<'window> {
         self.window
     }
 
+    pub fn get_config(&self) -> &wgpu::SurfaceConfiguration {
+        &self.config
+    }
+
     pub fn get_size(&self) -> PhysicalSize<u32> {
         self.size
     }

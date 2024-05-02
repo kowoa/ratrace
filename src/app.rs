@@ -18,7 +18,7 @@ impl App {
         let event_loop = EventLoop::new()?;
         event_loop.set_control_flow(ControlFlow::Poll);
 
-        let window_size = winit::dpi::LogicalSize::new(800.0, 600.0);
+        let window_size = winit::dpi::PhysicalSize::new(800.0, 600.0);
         let window = WindowBuilder::new()
             .with_title("Press R to toggle redraw requests.")
             .with_inner_size(window_size)
@@ -29,7 +29,6 @@ impl App {
         {
             // Winit prevents sizing with CSS, so we have to set
             // the size manually when on web.
-            use winit::dpi::PhysicalSize;
             let _ = window.request_inner_size(window_size);
 
             use winit::platform::web::WindowExtWebSys;
@@ -38,6 +37,8 @@ impl App {
                 .and_then(|doc| {
                     let dst = doc.get_element_by_id("canvas-container")?;
                     let canvas = web_sys::Element::from(window.canvas()?);
+                    canvas.set_attribute("width", &window_size.width.to_string());
+                    canvas.set_attribute("height", &window_size.height.to_string());
                     dst.append_child(&canvas).ok()?;
                     Some(())
                 })
