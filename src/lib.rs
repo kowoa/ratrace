@@ -1,13 +1,12 @@
 mod app;
 mod renderer;
 
-use app::App;
 use color_eyre::eyre::Result;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-pub fn run() -> Result<()> {
+pub async fn run() -> Result<()> {
     color_eyre::install()?;
 
     cfg_if::cfg_if! {
@@ -19,14 +18,13 @@ pub fn run() -> Result<()> {
         }
     }
 
-    let mut app = App::default();
-    app.run()?;
+    app::run().await?;
 
     Ok(())
 }
 
 #[allow(dead_code)]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
-fn run_wasm() {
-    run().unwrap();
+async fn run_wasm() {
+    run().await.unwrap();
 }

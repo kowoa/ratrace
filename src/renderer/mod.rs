@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use color_eyre::eyre::{OptionExt, Result};
 use winit::window::Window;
 
@@ -9,11 +7,11 @@ pub struct Renderer<'window> {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
-    window: Rc<Window>,
+    window: &'window Window,
 }
 
 impl<'window> Renderer<'window> {
-    pub async fn new(window: Rc<Window>) -> Result<Renderer<'window>> {
+    pub async fn new(window: &'window Window) -> Result<Renderer<'window>> {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -24,9 +22,7 @@ impl<'window> Renderer<'window> {
             ..Default::default()
         });
 
-        let window = window.clone();
-
-        let surface = instance.create_surface(window.as_ref())?;
+        let surface = instance.create_surface(window)?;
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -51,7 +47,8 @@ impl<'window> Renderer<'window> {
                 },
                 None,
             )
-            .await?;
+            .await
+            .unwrap();
 
         let surface_caps = surface.get_capabilities(&adapter);
         let surface_format = surface_caps
@@ -80,6 +77,10 @@ impl<'window> Renderer<'window> {
             size,
             window,
         })
+    }
+
+    pub fn get_window(&self) -> &Window {
+        self.window
     }
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {

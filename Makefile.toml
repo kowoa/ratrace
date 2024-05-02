@@ -18,7 +18,6 @@ command = "cargo"
 args = ["check"]
 
 [tasks.web-build]
-install_crate = "wasm-pack"
 command = "wasm-pack"
 args = ["build", "--target", "web"]
 
