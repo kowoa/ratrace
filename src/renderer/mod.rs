@@ -1,19 +1,18 @@
+mod viewport;
+
 use color_eyre::eyre::{OptionExt, Result};
-use winit::window::Window;
+use winit::{dpi::PhysicalSize, window::Window};
+
+use self::viewport::Viewport;
 
 pub struct Renderer<'window> {
-    surface: wgpu::Surface<'window>,
+    viewport: Viewport<'window>,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
-    size: winit::dpi::PhysicalSize<u32>,
-    window: &'window Window,
 }
 
 impl<'window> Renderer<'window> {
     pub async fn new(window: &'window Window) -> Result<Renderer<'window>> {
-        let size = window.inner_size();
-
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             #[cfg(not(target_arch = "wasm32"))]
             backends: wgpu::Backends::PRIMARY,
@@ -50,40 +49,66 @@ impl<'window> Renderer<'window> {
             .await
             .unwrap();
 
-        let surface_caps = surface.get_capabilities(&adapter);
-        let surface_format = surface_caps
-            .formats
-            .iter()
-            .copied()
-            .find(|format| format.is_srgb())
-            .unwrap_or(surface_caps.formats[0]);
-
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
-            width: size.width,
-            height: size.height,
-            present_mode: surface_caps.present_modes[0],
-            alpha_mode: surface_caps.alpha_modes[0],
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2,
+        let background = wgpu::Color {
+            r: 0.1,
+            g: 0.2,
+            b: 0.3,
+            a: 1.0,
         };
+        let viewport = Viewport::new(window, background, surface, &adapter)?;
 
         Ok(Self {
-            surface,
+            viewport,
             device,
             queue,
-            config,
-            size,
-            window,
         })
     }
 
-    pub fn get_window(&self) -> &Window {
-        self.window
+    pub fn get_size(&self) -> PhysicalSize<u32> {
+        self.viewport.get_size()
     }
 
-    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        todo!()
+    pub fn get_window(&self) -> &Window {
+        self.viewport.get_window()
+    }
+
+    pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
+        self.viewport.resize(new_size, &self.device);
+    }
+
+    pub fn update_scene(&mut self) {}
+
+    pub fn render_scene(&mut self) -> core::result::Result<(), wgpu::SurfaceError> {
+        let output = self.viewport.get_current_texture()?;
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+
+        {
+            let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(self.viewport.get_background()),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+
+        Ok(())
     }
 }

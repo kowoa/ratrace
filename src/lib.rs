@@ -18,7 +18,8 @@ pub async fn run() -> Result<()> {
         }
     }
 
-    app::run().await?;
+    let app = app::App::new()?;
+    app.run().await?;
 
     Ok(())
 }
@@ -26,5 +27,6 @@ pub async fn run() -> Result<()> {
 #[allow(dead_code)]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 async fn run_wasm() {
+    //wasm_bindgen_futures::spawn_local(run());
     run().await.unwrap();
 }

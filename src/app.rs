@@ -8,43 +8,52 @@ use winit::{
 
 use crate::renderer::Renderer;
 
-pub async fn run() -> Result<()> {
-    let event_loop = EventLoop::new()?;
-    event_loop.set_control_flow(ControlFlow::Poll);
+pub struct App {
+    event_loop: EventLoop<()>,
+    window: Window,
+}
 
-    let window_size = winit::dpi::LogicalSize::new(800.0, 600.0);
-    let window = WindowBuilder::new()
-        .with_title("Press R to toggle redraw requests.")
-        .with_inner_size(window_size)
-        .with_resizable(true)
-        .build(&event_loop)?;
+impl App {
+    pub fn new() -> Result<Self> {
+        let event_loop = EventLoop::new()?;
+        event_loop.set_control_flow(ControlFlow::Poll);
 
-    #[cfg(target_arch = "wasm32")]
-    {
-        // Winit prevents sizing with CSS, so we have to set
-        // the size manually when on web.
-        use winit::dpi::PhysicalSize;
-        let _ = window.request_inner_size(window_size);
+        let window_size = winit::dpi::LogicalSize::new(800.0, 600.0);
+        let window = WindowBuilder::new()
+            .with_title("Press R to toggle redraw requests.")
+            .with_inner_size(window_size)
+            .with_resizable(true)
+            .build(&event_loop)?;
 
-        use winit::platform::web::WindowExtWebSys;
-        web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| {
-                let dst = doc.get_element_by_id("canvas-container")?;
-                let canvas = web_sys::Element::from(window.canvas()?);
-                dst.append_child(&canvas).ok()?;
-                Some(())
-            })
-            .expect("Failed to append canvas to element with id=\"canvas-container\"");
+        #[cfg(target_arch = "wasm32")]
+        {
+            // Winit prevents sizing with CSS, so we have to set
+            // the size manually when on web.
+            use winit::dpi::PhysicalSize;
+            let _ = window.request_inner_size(window_size);
+
+            use winit::platform::web::WindowExtWebSys;
+            web_sys::window()
+                .and_then(|win| win.document())
+                .and_then(|doc| {
+                    let dst = doc.get_element_by_id("canvas-container")?;
+                    let canvas = web_sys::Element::from(window.canvas()?);
+                    dst.append_child(&canvas).ok()?;
+                    Some(())
+                })
+                .expect("Failed to append canvas to element with id=\"canvas-container\"");
+        }
+
+        Ok(Self { event_loop, window })
     }
 
-    {
-        let renderer = Renderer::new(&window).await?;
+    pub async fn run(self) -> Result<()> {
+        let mut renderer = Renderer::new(&self.window).await?;
 
         let mut request_redraws = true;
         let mut close_requested = false;
 
-        event_loop.run(move |event, elwt| {
+        self.event_loop.run(move |event, elwt| {
             match event {
                 Event::WindowEvent {
                     window_id,
@@ -53,7 +62,22 @@ pub async fn run() -> Result<()> {
                     WindowEvent::CloseRequested => close_requested = true,
                     WindowEvent::RedrawRequested => {
                         renderer.get_window().pre_present_notify();
-                        // draw here
+                        match renderer.render_scene() {
+                            Ok(_) => {}
+                            Err(wgpu::SurfaceError::Lost) => renderer.resize(renderer.get_size()),
+                            Err(wgpu::SurfaceError::OutOfMemory) => close_requested = true,
+                            Err(e) => log::error!("Unexpected error: {:?}", e),
+                        }
+                    }
+                    WindowEvent::Resized(physical_size) => {
+                        renderer.resize(*physical_size);
+                    }
+                    WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                        let mut new_size = renderer.get_size();
+                        new_size.width = (new_size.width as f64 * scale_factor) as u32;
+                        new_size.height = (new_size.height as f64 * scale_factor) as u32;
+
+                        renderer.resize(new_size);
                     }
                     WindowEvent::KeyboardInput {
                         event:
@@ -87,7 +111,7 @@ pub async fn run() -> Result<()> {
                 _ => {}
             };
         })?;
-    }
 
-    Ok(())
+        Ok(())
+    }
 }
