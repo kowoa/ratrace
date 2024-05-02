@@ -1,9 +1,9 @@
 use color_eyre::eyre::Result;
-use winit::window::WindowBuilder;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
+    window::{Window, WindowBuilder},
 };
 
 use crate::renderer::Renderer;
@@ -12,8 +12,11 @@ pub async fn run() -> Result<()> {
     let event_loop = EventLoop::new()?;
     event_loop.set_control_flow(ControlFlow::Poll);
 
+    let window_size = winit::dpi::LogicalSize::new(800.0, 600.0);
     let window = WindowBuilder::new()
         .with_title("Press R to toggle redraw requests.")
+        .with_inner_size(window_size)
+        .with_resizable(true)
         .build(&event_loop)?;
 
     #[cfg(target_arch = "wasm32")]
@@ -21,7 +24,7 @@ pub async fn run() -> Result<()> {
         // Winit prevents sizing with CSS, so we have to set
         // the size manually when on web.
         use winit::dpi::PhysicalSize;
-        let _ = window.request_inner_size(PhysicalSize::new(450, 400));
+        let _ = window.request_inner_size(window_size);
 
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
