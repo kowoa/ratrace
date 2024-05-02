@@ -9,6 +9,7 @@ pub struct Renderer<'window> {
     viewport: Viewport<'window>,
     device: wgpu::Device,
     queue: wgpu::Queue,
+    render_pipeline: wgpu::RenderPipeline,
 }
 
 impl<'window> Renderer<'window> {
