@@ -1,6 +1,8 @@
 mod app;
-mod ray_tracer;
 mod renderer;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod ray_tracer;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
