@@ -1,15 +1,34 @@
+mod vertex;
 mod viewport;
 
 use color_eyre::eyre::{OptionExt, Result};
+use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, window::Window};
 
-use self::viewport::Viewport;
+use self::{vertex::Vertex, viewport::Viewport};
+
+const VERTICES: &[Vertex] = &[
+    Vertex {
+        position: [0.0, 0.5, 0.0],
+        color: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, -0.5, 0.0],
+        color: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, -0.5, 0.0],
+        color: [0.0, 0.0, 1.0],
+    },
+];
 
 pub struct Renderer<'window> {
     viewport: Viewport<'window>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     render_pipeline: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    vertex_count: u32,
 }
 
 impl<'window> Renderer<'window> {
@@ -67,13 +86,19 @@ impl<'window> Renderer<'window> {
                 push_constant_ranges: &[],
             });
 
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[],
+                buffers: &[Vertex::desc()],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -109,6 +134,8 @@ impl<'window> Renderer<'window> {
             device,
             queue,
             render_pipeline,
+            vertex_buffer,
+            vertex_count: VERTICES.len() as u32,
         })
     }
 
@@ -154,7 +181,8 @@ impl<'window> Renderer<'window> {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw(0..3, 0..1);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.draw(0..self.vertex_count, 0..1);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
