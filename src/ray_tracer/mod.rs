@@ -14,7 +14,7 @@ pub fn run() {
     env_logger::init();
 
     let image_aspect_ratio: f32 = 16.0 / 9.0;
-    let image_width: u32 = 800;
+    let image_width: u32 = 400;
     let image_height: u32 = std::cmp::max((image_width as f32 / image_aspect_ratio) as u32, 1);
 
     let camera = Camera::new(image_width, image_height);

@@ -1,5 +1,7 @@
 use std::ops::{Add, Mul};
 
+use nalgebra_glm::Vec3;
+
 pub struct Color {
     r: f32,
     g: f32,
@@ -9,6 +11,14 @@ pub struct Color {
 impl Color {
     pub fn new(r: f32, g: f32, b: f32) -> Self {
         Self { r, g, b }
+    }
+
+    pub fn from_vec3(vec: Vec3) -> Self {
+        Self {
+            r: vec.x,
+            g: vec.y,
+            b: vec.z,
+        }
     }
 
     pub fn as_u32(&self) -> u32 {
