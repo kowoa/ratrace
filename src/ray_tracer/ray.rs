@@ -1,10 +1,10 @@
 use nalgebra_glm::{vec3, Vec3};
 
-use super::color::Color;
+use super::{color::Color, hittable::Hittable, scene::Scene};
 
 pub struct Ray {
-    origin: Vec3,
-    direction: Vec3,
+    pub origin: Vec3,
+    pub direction: Vec3,
 }
 
 impl Ray {
@@ -17,13 +17,12 @@ impl Ray {
     }
 
     /// Returns the color of the pixel that the ray hits
-    pub fn trace(&self) -> Color {
-        let sphere_center = vec3(0.0, 0.0, -1.0);
-        let sphere_radius = 0.5;
-        let t = self.hit_sphere(sphere_center, sphere_radius);
-        if t > 0.0 {
-            let normal = (self.at(t) - sphere_center).normalize();
-            return Color::new(normal.x + 1.0, normal.y + 1.0, normal.z + 1.0) * 0.5;
+    pub fn trace(&self, scene: &Scene) -> Color {
+        for object in &scene.objects {
+            if let Some(hit) = object.hit(self, f32::MIN, f32::MAX) {
+                let normal = hit.normal;
+                return Color::new(normal.x + 1.0, normal.y + 1.0, normal.z + 1.0) * 0.5;
+            }
         }
 
         // Sky gradient
