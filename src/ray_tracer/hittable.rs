@@ -10,6 +10,7 @@ pub struct HitRecord {
     pub point: Vec3,
     pub normal: Vec3,
     pub t: f32,
+    pub front_face: bool,
 }
 
 pub struct Sphere {
@@ -40,7 +41,25 @@ impl Hittable for Sphere {
 
         let t = root;
         let point = ray.at(t);
-        let normal = (point - self.center) / self.radius;
-        Some(HitRecord { point, normal, t })
+        let (normal, front_face) = {
+            let outward_normal = (point - self.center) / self.radius;
+            let front_face = ray.direction.dot(&outward_normal) < 0.0;
+            (
+                if front_face {
+                    // Outside the sphere
+                    outward_normal
+                } else {
+                    // Inside the sphere
+                    -outward_normal
+                },
+                front_face,
+            )
+        };
+        Some(HitRecord {
+            point,
+            normal,
+            t,
+            front_face,
+        })
     }
 }

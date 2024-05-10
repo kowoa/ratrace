@@ -9,22 +9,26 @@ use nalgebra_glm::vec3;
 use rand::prelude::*;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use self::{camera::Camera, ray::Ray, scene::Scene};
+use self::{camera::Camera, hittable::Sphere, ray::Ray, scene::Scene};
 
 pub fn run() {
     color_eyre::install().unwrap();
     env_logger::init();
 
     let image_aspect_ratio: f32 = 16.0 / 9.0;
-    let image_width: u32 = 400;
+    let image_width: u32 = 800;
     let image_height: u32 = std::cmp::max((image_width as f32 / image_aspect_ratio) as u32, 1);
 
     let camera = Camera::new(image_width, image_height);
     let scene = {
         let mut scene = Scene::default();
-        scene.add_object(Box::new(hittable::Sphere {
+        scene.add_object(Box::new(Sphere {
             center: vec3(0.0, 0.0, -1.0),
             radius: 0.5,
+        }));
+        scene.add_object(Box::new(Sphere {
+            center: vec3(0.0, -100.5, -1.0),
+            radius: 100.0,
         }));
         scene
     };
