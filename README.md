@@ -2,6 +2,11 @@
 
 ray-tracing with wgpu
 
+## notes
+
+web build is currently not working because ray-tracing is multi-threaded using rayon,
+which web builds don't support
+
 ## tools
 
 - `cargo`
