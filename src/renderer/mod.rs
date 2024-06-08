@@ -3,7 +3,6 @@ mod viewport;
 
 use color_eyre::eyre::{OptionExt, Result};
 use image::{Rgba, RgbaImage};
-use nalgebra_glm::{vec4, Mat4};
 use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, window::Window};
 

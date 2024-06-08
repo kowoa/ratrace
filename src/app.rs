@@ -7,7 +7,10 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use crate::{ray_tracer, renderer::Renderer};
+use crate::renderer::Renderer;
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::ray_tracer;
 
 pub struct App {
     event_loop: EventLoop<()>,
@@ -50,9 +53,13 @@ impl App {
     }
 
     pub async fn run(self) -> Result<()> {
-        let image = ray_tracer::run()?;
         let mut renderer = Renderer::new(&self.window).await?;
-        renderer.set_background_image(image);
+        
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let image = ray_tracer::run()?;
+            renderer.set_background_image(image);
+        }
 
         let mut request_redraws = true;
         let mut close_requested = false;
