@@ -107,7 +107,7 @@ impl<'window> Renderer<'window> {
                             view_dimension: wgpu::TextureViewDimension::D2,
                             sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         },
-                        count: None
+                        count: None,
                     },
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
@@ -169,10 +169,15 @@ impl<'window> Renderer<'window> {
             multiview: None,
         });
 
-        
         let mut black_image = RgbaImage::new(1, 1);
         black_image.put_pixel(0, 0, Rgba([0, 0, 0, 255]));
-        let bg_bind_group = Self::create_texture(black_image, "black_texture", &device, &queue, &texture_bind_group_layout);
+        let bg_bind_group = Self::create_texture(
+            black_image,
+            "black_texture",
+            &device,
+            &queue,
+            &texture_bind_group_layout,
+        );
 
         Ok(Self {
             viewport,
@@ -197,58 +202,7 @@ impl<'window> Renderer<'window> {
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         self.viewport.resize(new_size, &self.device);
-        
-        // Also resize the background texture
-        // Update the background quad vertex buffer to match aspect ratio of background image
-        // Correct for image dimensions
-        let image_width = self.bg_texture_width as f32;
-        let image_height = self.bg_texture_height as f32;
-        let mut x = if image_width >= image_height { 1.0 } else { image_width / image_height };
-        let mut y = if image_width < image_height { 1.0 } else { image_height / image_width };
-        // Correct for viewport dimensions
-        let vp_size = self.viewport.get_size();
-        if vp_size.width > vp_size.height {
-            y *= vp_size.width as f32 / vp_size.height as f32;
-        } else {
-            x *= vp_size.height as f32 / vp_size.width as f32;
-        };
-        let vertices = vec![
-            Vertex {
-                position: [-x, y, 0.0],
-                uv: [0.0, 0.0],
-            },
-            Vertex {
-                position: [-x, -y, 0.0],
-                uv: [0.0, 1.0],
-            },
-            Vertex {
-                position: [x, y, 0.0],
-                uv: [1.0, 0.0],
-            },
-            Vertex {
-                position: [x, y, 0.0],
-                uv: [1.0, 0.0],
-            },
-            Vertex {
-                position: [-x, -y, 0.0],
-                uv: [0.0, 1.0],
-            },
-            Vertex {
-                position: [x, -y, 0.0],
-                uv: [1.0, 1.0],
-            },
-        ];
-        let staging_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("staging_buffer"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::COPY_SRC,
-        });
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Background Quad Vertex Buffer Update Encoder")
-        });
-        let copy_size = std::mem::size_of::<Vertex>() * vertices.len();
-        encoder.copy_buffer_to_buffer(&staging_buffer, 0, &self.bg_quad_vbuffer, 0, copy_size as wgpu::BufferAddress);
-        self.queue.submit(Some(encoder.finish()));
+        self.resize_background_texture();
     }
 
     pub fn update_scene(&mut self) {}
@@ -291,65 +245,85 @@ impl<'window> Renderer<'window> {
 
         Ok(())
     }
-    
+
     pub fn set_background_image(&mut self, image: RgbaImage) {
         let image_width = image.width() as f32;
         let image_height = image.height() as f32;
         self.bg_texture_width = image.width();
         self.bg_texture_height = image.height();
-        self.bg_bind_group = Self::create_texture(image, "background_texture", &self.device, &self.queue, &self.texture_bind_group_layout);
-        
+        self.bg_bind_group = Self::create_texture(
+            image,
+            "background_texture",
+            &self.device,
+            &self.queue,
+            &self.texture_bind_group_layout,
+        );
+
+        self.resize_background_texture();
+    }
+
+    fn resize_background_texture(&self) {
         // Update the background quad vertex buffer to match aspect ratio of background image
         // Correct for image dimensions
-        let mut x = if image_width >= image_height { 1.0 } else { image_width / image_height };
-        let mut y = if image_width < image_height { 1.0 } else { image_height / image_width };
+        let image_width = self.bg_texture_width as f32;
+        let image_height = self.bg_texture_height as f32;
+        let mut x = if image_width >= image_height {
+            1.0
+        } else {
+            image_width / image_height
+        };
+        let mut y = if image_width < image_height {
+            1.0
+        } else {
+            image_height / image_width
+        };
         // Correct for viewport dimensions
         let vp_size = self.viewport.get_size();
-        if vp_size.width > vp_size.height {
+        if vp_size.width >= vp_size.height {
             y *= vp_size.width as f32 / vp_size.height as f32;
         } else {
             x *= vp_size.height as f32 / vp_size.width as f32;
         };
-        let vertices = vec![
-            Vertex {
-                position: [-x, y, 0.0],
-                uv: [0.0, 0.0],
-            },
-            Vertex {
-                position: [-x, -y, 0.0],
-                uv: [0.0, 1.0],
-            },
-            Vertex {
-                position: [x, y, 0.0],
-                uv: [1.0, 0.0],
-            },
-            Vertex {
-                position: [x, y, 0.0],
-                uv: [1.0, 0.0],
-            },
-            Vertex {
-                position: [-x, -y, 0.0],
-                uv: [0.0, 1.0],
-            },
-            Vertex {
-                position: [x, -y, 0.0],
-                uv: [1.0, 1.0],
-            },
-        ];
-        let staging_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("staging_buffer"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::COPY_SRC,
-        });
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Background Quad Vertex Buffer Update Encoder")
-        });
+        let vertices: Vec<Vertex> = FULLSCREEN_QUAD_VERTICES
+            .iter()
+            .map(|v| {
+                let p = v.position;
+                Vertex {
+                    position: [p[0] * x, p[1] * y, p[2]],
+                    uv: v.uv,
+                }
+            })
+            .collect();
+        let staging_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("staging_buffer"),
+                contents: bytemuck::cast_slice(&vertices),
+                usage: wgpu::BufferUsages::COPY_SRC,
+            });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Background Quad Vertex Buffer Update Encoder"),
+            });
         let copy_size = std::mem::size_of::<Vertex>() * vertices.len();
-        encoder.copy_buffer_to_buffer(&staging_buffer, 0, &self.bg_quad_vbuffer, 0, copy_size as wgpu::BufferAddress);
+        encoder.copy_buffer_to_buffer(
+            &staging_buffer,
+            0,
+            &self.bg_quad_vbuffer,
+            0,
+            copy_size as wgpu::BufferAddress,
+        );
         self.queue.submit(Some(encoder.finish()));
     }
-    
-    fn create_texture(image: RgbaImage, texture_name: &str, device: &wgpu::Device, queue: &wgpu::Queue, texture_bind_group_layout: &wgpu::BindGroupLayout) -> wgpu::BindGroup {
+
+    fn create_texture(
+        image: RgbaImage,
+        texture_name: &str,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        texture_bind_group_layout: &wgpu::BindGroupLayout,
+    ) -> wgpu::BindGroup {
         let dimensions = image.dimensions();
 
         let texture_size = wgpu::Extent3d {
@@ -357,18 +331,16 @@ impl<'window> Renderer<'window> {
             height: dimensions.1,
             depth_or_array_layers: 1,
         };
-        let texture = device.create_texture(
-            &wgpu::TextureDescriptor {
-                size: texture_size,
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                label: Some(texture_name),
-                view_formats: &[]
-            }
-        );
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            size: texture_size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            label: Some(texture_name),
+            view_formats: &[],
+        });
         queue.write_texture(
             wgpu::ImageCopyTexture {
                 texture: &texture,
@@ -382,35 +354,33 @@ impl<'window> Renderer<'window> {
                 bytes_per_row: Some(4 * dimensions.0),
                 rows_per_image: Some(dimensions.1),
             },
-            texture_size
+            texture_size,
         );
-        
+
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
+            mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
         });
-        
-        device.create_bind_group(
-            &wgpu::BindGroupDescriptor {
-                layout: &texture_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&texture_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&sampler),
-                    },
-                ],
-                label: Some(&format!("{}_bind_group", texture_name)),
-            }
-        )
+
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&texture_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+            ],
+            label: Some(&format!("{}_bind_group", texture_name)),
+        })
     }
 }

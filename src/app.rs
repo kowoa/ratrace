@@ -54,7 +54,7 @@ impl App {
 
     pub async fn run(self) -> Result<()> {
         let mut renderer = Renderer::new(&self.window).await?;
-        
+
         #[cfg(not(target_arch = "wasm32"))]
         {
             let image = ray_tracer::run()?;
