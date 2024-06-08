@@ -2,6 +2,7 @@ mod vertex;
 mod viewport;
 
 use color_eyre::eyre::{OptionExt, Result};
+use image::{Rgba, RgbaImage};
 use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -9,16 +10,28 @@ use self::{vertex::Vertex, viewport::Viewport};
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [0.0, 0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
+        position: [-1.0, 1.0, 0.0],
+        uv: [0.0, 0.0],
     },
     Vertex {
-        position: [-0.5, -0.5, 0.0],
-        color: [0.0, 1.0, 0.0],
+        position: [-1.0, -1.0, 0.0],
+        uv: [0.0, 1.0],
     },
     Vertex {
-        position: [0.5, -0.5, 0.0],
-        color: [0.0, 0.0, 1.0],
+        position: [1.0, 1.0, 0.0],
+        uv: [1.0, 0.0],
+    },
+    Vertex {
+        position: [1.0, 1.0, 0.0],
+        uv: [1.0, 0.0],
+    },
+    Vertex {
+        position: [-1.0, -1.0, 0.0],
+        uv: [0.0, 1.0],
+    },
+    Vertex {
+        position: [1.0, -1.0, 0.0],
+        uv: [1.0, 1.0],
     },
 ];
 
@@ -29,9 +42,12 @@ pub struct Renderer<'window> {
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     vertex_count: u32,
+    texture_bind_group_layout: wgpu::BindGroupLayout,
+    background_bind_group: wgpu::BindGroup,
 }
 
 impl<'window> Renderer<'window> {
+    /// Create a new renderer with all the state required to call `render_scene()`
     pub async fn new(window: &'window Window) -> Result<Renderer<'window>> {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             #[cfg(not(target_arch = "wasm32"))]
@@ -79,10 +95,33 @@ impl<'window> Renderer<'window> {
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("../../shaders/basic.wgsl"));
 
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+                label: Some("texture_bind_group_layout"),
+            });
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&texture_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -129,6 +168,11 @@ impl<'window> Renderer<'window> {
             multiview: None,
         });
 
+        
+        let mut black_image = RgbaImage::new(1, 1);
+        black_image.put_pixel(0, 0, Rgba([0, 0, 0, 255]));
+        let background_bind_group = Self::create_texture(black_image, "black_texture", &device, &queue, &texture_bind_group_layout);
+
         Ok(Self {
             viewport,
             device,
@@ -136,6 +180,8 @@ impl<'window> Renderer<'window> {
             render_pipeline,
             vertex_buffer,
             vertex_count: VERTICES.len() as u32,
+            texture_bind_group_layout,
+            background_bind_group,
         })
     }
 
@@ -181,6 +227,7 @@ impl<'window> Renderer<'window> {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.background_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..self.vertex_count, 0..1);
         }
@@ -189,5 +236,74 @@ impl<'window> Renderer<'window> {
         output.present();
 
         Ok(())
+    }
+    
+    pub fn set_background_image(&mut self, image: RgbaImage) {
+        self.background_bind_group = Self::create_texture(image, "background_texture", &self.device, &self.queue, &self.texture_bind_group_layout);
+    }
+    
+    fn create_texture(image: RgbaImage, texture_name: &str, device: &wgpu::Device, queue: &wgpu::Queue, texture_bind_group_layout: &wgpu::BindGroupLayout) -> wgpu::BindGroup {
+        let dimensions = image.dimensions();
+
+        let texture_size = wgpu::Extent3d {
+            width: dimensions.0,
+            height: dimensions.1,
+            depth_or_array_layers: 1,
+        };
+        let texture = device.create_texture(
+            &wgpu::TextureDescriptor {
+                size: texture_size,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                label: Some(texture_name),
+                view_formats: &[]
+            }
+        );
+        queue.write_texture(
+            wgpu::ImageCopyTexture {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            &image,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * dimensions.0),
+                rows_per_image: Some(dimensions.1),
+            },
+            texture_size
+        );
+        
+        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+        
+        device.create_bind_group(
+            &wgpu::BindGroupDescriptor {
+                layout: &texture_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&texture_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&sampler),
+                    },
+                ],
+                label: Some(&format!("{}_bind_group", texture_name)),
+            }
+        )
     }
 }

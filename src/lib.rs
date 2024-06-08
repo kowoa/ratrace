@@ -10,8 +10,8 @@ use wasm_bindgen::prelude::*;
 pub fn run() {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        //pollster::block_on(run_async())
-        ray_tracer::run_and_display();
+        pollster::block_on(run_async())
+        //ray_tracer::run_and_display();
     }
 }
 

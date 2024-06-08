@@ -52,7 +52,7 @@ impl App {
     pub async fn run(self) -> Result<()> {
         let image = ray_tracer::run()?;
         let mut renderer = Renderer::new(&self.window).await?;
-        //renderer.set_background_texture(texture);
+        renderer.set_background_image(image);
 
         let mut request_redraws = true;
         let mut close_requested = false;
