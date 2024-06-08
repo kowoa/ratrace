@@ -1,5 +1,6 @@
 use std::ops::{Add, Mul};
 
+use image::Rgba;
 use nalgebra_glm::Vec3;
 
 pub struct Color {
@@ -21,11 +22,11 @@ impl Color {
         }
     }
 
-    pub fn as_u32(&self) -> u32 {
+    pub fn as_rgba(&self) -> Rgba<u8> {
         let r = (255.999 * self.r) as u8;
         let g = (255.999 * self.g) as u8;
         let b = (255.999 * self.b) as u8;
-        u32::from_le_bytes([b, g, r, 255])
+        [r, g, b, 255].into()
     }
 }
 

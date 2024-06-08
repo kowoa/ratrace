@@ -1,4 +1,5 @@
 use color_eyre::eyre::Result;
+use image::GenericImageView;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -6,7 +7,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use crate::renderer::Renderer;
+use crate::{ray_tracer, renderer::Renderer};
 
 pub struct App {
     event_loop: EventLoop<()>,
@@ -49,7 +50,9 @@ impl App {
     }
 
     pub async fn run(self) -> Result<()> {
+        let image = ray_tracer::run()?;
         let mut renderer = Renderer::new(&self.window).await?;
+        //renderer.set_background_texture(texture);
 
         let mut request_redraws = true;
         let mut close_requested = false;
