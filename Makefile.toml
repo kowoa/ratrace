@@ -22,7 +22,7 @@ command = "wasm-pack"
 args = ["build", "--target", "web"]
 
 [tasks.http-server]
-command = "python3"
+command = "python"
 args = ["-m", "http.server", "8800", "-d", "."]
 
 [tasks.web]

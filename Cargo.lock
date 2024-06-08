@@ -1557,29 +1557,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c8a99fddc9f0ba0a85884b8d14e3592853e787d581ca1816c91349b10e4eeab"
 
 [[package]]
-name = "ratrace"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "cfg-if",
- "color-eyre",
- "console_error_panic_hook",
- "console_log",
- "env_logger",
- "log",
- "minifb",
- "nalgebra-glm",
- "pollster",
- "rand",
- "rayon",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "wgpu",
- "winit",
-]
-
-[[package]]
 name = "raw-window-handle"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1618,6 +1595,29 @@ checksum = "1465873a3dfdaa8ae7cb14b4383657caab0b3e8a0aa9ae8e04b044854c8dfce2"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
+]
+
+[[package]]
+name = "raytrace"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "cfg-if",
+ "color-eyre",
+ "console_error_panic_hook",
+ "console_log",
+ "env_logger",
+ "log",
+ "minifb",
+ "nalgebra-glm",
+ "pollster",
+ "rand",
+ "rayon",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "wgpu",
+ "winit",
 ]
 
 [[package]]

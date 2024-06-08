@@ -1,4 +1,4 @@
-use ratrace::run;
+use raytrace::run;
 
 fn main() {
     run();

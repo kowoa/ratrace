@@ -1,4 +1,4 @@
-# ratrace
+# raytrace
 
 ray-tracing with wgpu
 
